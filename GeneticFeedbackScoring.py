@@ -1,15 +1,21 @@
-from numpy import random
+import numpy
 import math
 import random
+import copy
+
 
 class Judge:
+
+    def setRanking(self, rank):
+        self.ranking = rank
+    
     def __init__(self):
-        randomValue = random.normal(50, 100,1)
+        randomValue = numpy.random.normal(50, 100,1)
         randomValue %= 100
         randomValue = math.floor(math.fabs(randomValue))
         self.objRanking = randomValue
 
-        caRanking = random.normal(self.getObjRanking(), 10, 1)
+        caRanking = numpy.random.normal(self.getObjRanking(), 10, 1)
         caRanking = math.floor(math.fabs(caRanking % 100))
         self.ranking = caRanking
 
@@ -43,7 +49,7 @@ class Judge:
 
 class Feedback:
 
-    def __init__(self, ranking):
+    def __init__(self, ranking, objRanking):
         if random.randint(0,2) == 1:
             self.judgeFeedback = True
             self.ranking = ranking
@@ -51,17 +57,17 @@ class Feedback:
             self.judgeFeedback = False
 
         if self.judgeFeedback:
-            self.rankValue = math.fabs(math.floor(random.normal(objRanking, ranking, 1)%100))
+            self.rankValue = math.fabs(math.floor(numpy.random.normal(objRanking, ranking, 1)%100))
         else:
             # team feedback
             if random.randint(0,2) == 1:
                 # team won
-                self.rankValue = math.fabs(math.floor(random.normal(objRanking, 10, 1)%100))
+                self.rankValue = math.fabs(math.floor(numpy.random.normal(objRanking, 10, 1)%100))
                 self.ranking = 5
             else:
                 # team didnt win
                 # more likely to be wrong
-                self.rankValue = math.fabs(math.floor(random.normal(objRanking, 20, 1)%100))
+                self.rankValue = math.fabs(math.floor(numpy.random.normal(objRanking, 20, 1)%100))
                 self.ranking = 5
 
     def getEvalValue(self):
@@ -142,19 +148,60 @@ class Node:
 class Algorithm:
     def getNodes(self):
         return self.nodeList
+
+    def prnt(self):
+        stri = "currentScore "
+        for i in self.nodeList:
+            stri += i.getValue()
+            stri += " "
+        print(stri)
     
-    def doesThisCountAsCompiling(self, start):
-        currentTotal = start
-        while self.nodeList != []:
-            node = self.nodeList.pop()
+    def doesThisCountAsCompiling(self, judge):
+        rnk = random.randint(1,99)
+        feedback = Feedback(rnk, judge.objRanking)
+        startScore = judge.getCurRanking()
+        caScore = judge.getRankHistory()[1]
+        sizeOfFeedback = judge.getFeedbackCount()
+        feedbackRank = rnk
+        feedbackValue = feedback.getEvalValue()
+
+        
+        currentTotal = judge.ranking
+        workingList = copy.deepcopy(self.nodeList)
+
+        self.prnt()
+        while workingList != []:
+            node = workingList.pop()
             if node.getType() == 0:
             # if it's an operator, perform it on the currentTotal
-                if node.value == "+":
-                    nextnode = self.nodeList.pop()
-                    # TODO: Continue
-
-    def evaluateNode(self, node):
-        return None # TODO: Implement this.
+                nextNode = workingList.pop()
+                expr = "currentTotal "
+                expr += node.getValue()
+                expr += " "
+                if nextNode.getType() == 1:
+                    exp = "math."
+                    exp += nextNode.getValue()
+                    exp += "("
+                    nextNode = workingList.pop()
+                    exp +=  nextNode.getValue()
+                    exp += ")"
+                    val = eval(exp)
+                    expr += str(int(val))
+                else:
+                    expr += nextNode.getValue()
+                value = eval(expr)
+                value = int(value)
+                currentTotal = value
+            elif node.getType() == 1:
+                expr = "currentTotal "
+                expr +
+            elif node.getType() == 2:
+                judge.setRanking(currentTotal)
+            else:
+                #malformed
+                print("MALFORMED2")
+                currentTotal = 0
+                self.nodeList = []
 
 
         
@@ -189,11 +236,61 @@ class Algorithm:
                     self.nodeList.append(Node(nType))
 
 
+class Tournament:
+    def __init__(self, noJudges, noAlgorithms):
+        self.judgesList = []
+        self.algorithmsList = []
+        self.tournamentDictionary = {}
+        self.goodnessranking = {}
+        for i in range(noJudges):
+            self.judgesList.append(Judge())
 
-algo = Algorithm()
-text = "CurrentScore "
-for i in algo.getNodes():
-    text += i.value
-    text += " "
-print(text)
+        for i in range(noAlgorithms):
+            self.algorithmsList.append(Algorithm())
 
+        for algorithm in self.algorithmsList:
+            self.tournamentDictionary[algorithm] = copy.deepcopy(self.judgesList)
+
+    def runNextRound(self):
+        for algo, judgz in self.tournamentDictionary.iteritems():
+            # run algorithm on judgz
+            for j in judgz:
+                algo.doesThisCountAsCompiling(j)
+
+            self.tournamentDictionary[algo] = judgz
+
+    def evaluateGoodness(self):
+        for algo, judgz in self.tournamentDictionary.iteritems():
+            bestcase = sorted(judgz, key=lambda x: x.objRanking, reverse=True)
+            curcase = sorted(judgz, key=lambda x: x.ranking, reverse=True)
+
+            goodsofar = 0
+            algo.prnt()
+            for i in range(len(bestcase)):
+                if bestcase[i].objRanking == curcase[i].objRanking:
+                    goodsofar += 1
+
+            self.goodnessranking[algo] = goodsofar
+            
+
+
+
+toor = Tournament(10, 10)
+toor.runNextRound()
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
